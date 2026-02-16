@@ -81,3 +81,42 @@ void renderHome() {
 
   renderStatusBar();
 }
+
+void renderGameSelector(int index, const char* name) {
+  uint16_t bgColor = darkModeEnabled ? DARK_BG : GAMEPOD_GREY;
+  uint16_t textColor = darkModeEnabled ? DARK_TEXT : GAMEPOD_DARK;
+  uint16_t accent = GAMEPOD_BLUE;
+
+  tft.fillScreen(bgColor);
+  // Header
+  tft.fillRect(0, 0, SCREEN_W, 36, GAMEPOD_WHITE);
+  tft.setTextSize(1);
+  tft.setTextColor(textColor);
+  tft.setCursor(8, 12);
+  tft.print("Select Game");
+
+  // draw arrows
+  tft.setTextSize(4);
+  tft.setTextColor(accent);
+  tft.setCursor(8, SCREEN_H/2 - 12);
+  tft.print("<");
+  tft.setCursor(SCREEN_W - 32, SCREEN_H/2 - 12);
+  tft.print(">");
+
+  // show game name centered
+  tft.setTextSize(3);
+  tft.setTextColor(textColor);
+  int16_t x1,y1; uint16_t w,h;
+  tft.getTextBounds(name, 0, 0, &x1, &y1, &w, &h);
+  int cx = (SCREEN_W - (int)w)/2;
+  tft.setCursor(cx, SCREEN_H/2 - 18);
+  tft.print(name);
+
+  // instruction
+  tft.setTextSize(1);
+  tft.setTextColor(textColor);
+  tft.setCursor(12, SCREEN_H - 18);
+  tft.print("Move joystick left/right, press A to select");
+
+  renderStatusBar();
+}

@@ -5,5 +5,6 @@
 
 void renderHome();
 void renderStatusBar();
+void renderGameSelector(int index, const char* name);
 
 #endif // UI_RENDERER_H
