@@ -3,9 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
-extern Adafruit_ILI9341 tft;
-extern bool darkModeEnabled;
-
 static inline void drawCenteredText(const char* txt, int y, uint8_t size, uint16_t color) {
   tft.setTextSize(size);
   tft.setTextColor(color);
@@ -79,19 +76,21 @@ void renderHome() {
   tft.setCursor(20, 56);
   tft.print("GamePod V1");
 
-  renderStatusBar();
+  //renderStatusBar();
 }
 
-void renderGameSelector(int index, const char* name) {
+void renderGameSelector(int index, const char* name, bool isSelected) {
   uint16_t bgColor = darkModeEnabled ? DARK_BG : GAMEPOD_GREY;
   uint16_t textColor = darkModeEnabled ? DARK_TEXT : GAMEPOD_DARK;
+  uint16_t headerColor = darkModeEnabled ? 0x2104 : GAMEPOD_WHITE;
+  uint16_t headerTextColor = darkModeEnabled ? GAMEPOD_WHITE : GAMEPOD_DARK;
   uint16_t accent = GAMEPOD_BLUE;
 
   tft.fillScreen(bgColor);
   // Header
-  tft.fillRect(0, 0, SCREEN_W, 36, GAMEPOD_WHITE);
+  tft.fillRect(0, 0, SCREEN_W, 36, headerColor);
   tft.setTextSize(1);
-  tft.setTextColor(textColor);
+  tft.setTextColor(headerTextColor);
   tft.setCursor(8, 12);
   tft.print("Select Game");
 
@@ -102,6 +101,19 @@ void renderGameSelector(int index, const char* name) {
   tft.print("<");
   tft.setCursor(SCREEN_W - 32, SCREEN_H/2 - 12);
   tft.print(">");
+
+  // Draw a selection box around the game name if selected
+  if (isSelected) {
+    // Draw a glowing box around the game name
+    int boxX = 30;
+    int boxY = SCREEN_H/2 - 35;
+    int boxW = SCREEN_W - 60;
+    int boxH = 50;
+    
+    // Draw selection highlight
+    tft.drawRoundRect(boxX, boxY, boxW, boxH, 10, accent);
+    tft.drawRoundRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2, 10, accent);
+  }
 
   // show game name centered
   tft.setTextSize(3);
@@ -118,5 +130,5 @@ void renderGameSelector(int index, const char* name) {
   tft.setCursor(12, SCREEN_H - 18);
   tft.print("Move joystick left/right, press A to select");
 
-  renderStatusBar();
+  //renderStatusBar();
 }
