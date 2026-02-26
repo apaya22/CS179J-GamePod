@@ -9,12 +9,12 @@ static const int Width_Sreen = 320;
 static const int Height_screen = 240;
 static const uint8_t Screen_ROT = 1; //1 is for horzontal depending on 0/1/2/3 u will need to switch the w and h
 
-  //currently bike is a 9x5 or 5x9 depeding on direction and there is a trail guard that will hold the trail until a turn
-  //the trail is working and bike is working
-  //have yet to figure out turning and bike over lapping with a trail and how i will recolor the trail after the bike is not on it anymore
-  //need to figure out how to color certain pixels on the bike difference colors
-  //need to figure out how to keep track of which pixles are apart of the trail in order for deletion later, this will also be used for over lap checks
-  //need to make death animation
+  // currently bike is a 9x5 or 5x9 depeding on direction and there is a trail guard that will hold the trail until a turn
+  // the trail is working and bike is working
+  // have yet to figure out turning and bike over lapping with a trail and how i will recolor the trail after the bike is not on it anymore
+  // need to figure out how to color certain pixels on the bike difference colors
+  // need to figure out how to keep track of which pixles are apart of the trail in order for deletion later, this will also be used for over lap checks
+  // need to make death animation
 
 // =====================
 // DISPLAY PIN CONFIGURATION (your new wiring)
@@ -36,6 +36,11 @@ struct Player {
 };
 
 Player player1;
+
+
+// 320 * 240 = 76,800 bits = 9,600 bytes here
+static uint8_t trailMap[240][320 / 8]; // [row][col_byte] (divide by 8 to only store a bit)
+
 
 //resets screen and fills it with black, will need more later like reseting/redrawing the characters
 void resetScreenBeforeStart() {
@@ -189,6 +194,10 @@ void drawCharacter(int character_x_cord, int character_y_cord, uint8_t character
         }
     }
   }
+
+  //by now the middle pixle should be left for the trail so we will store it in our bitmap
+  trailMap[character_y_cord][character_x_cord / 8] |= (1 << (character_x_cord % 8));
+
 }
 
 
@@ -324,6 +333,52 @@ void clearCharacter(int character_x_cord, int character_y_cord, uint8_t characte
 
 // }
 
+//check if current pixel at x and y is a trail in our trail map
+bool isTrail(int x, int y) {
+  return (trailMap[y][x / 8] >> (x % 8)) & 1;
+}
+
+// void clearTrailMap() {
+//   memset(trailMap, 0, sizeof(trailMap));
+// }
+
+void restoreTrail(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+
+  if (character_direction == 0 || character_direction == 1) {
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+    w = 9;
+    h = 9;
+  } else {
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+    w = 9;
+    h = 9;
+  }
+
+  for (int row = 0; row < h; row++) {
+    for (int col = 0; col < w; col++) {
+      int px = startX + col;
+      int py = startY + row;
+      if (isTrail(px, py)) {
+        tft.drawPixel(px, py, ILI9341_CYAN);
+      }
+    }
+  }
+}
+
+void clearAllTrail() {
+  for (int y = 0; y < 240; y++) {
+    for (int x = 0; x < 320; x++) {
+      if (isTrail(x, y)) {
+        tft.drawPixel(x, y, ILI9341_BLACK);
+      }
+    }
+  }
+  memset(trailMap, 0, sizeof(trailMap));
+}
+
 void setup() {
   Serial.begin(115200);
   randomSeed(esp_random());
@@ -341,53 +396,49 @@ void setup() {
 }
 
 
-  int dummyx = 30;
-  int dummyy= 200;
-  int dummyd= 3;
+int dummyx = 30;
+int dummyy = 100;
+int dummyd = 3; // start going right
+int olddummyd = 0;
+bool turned = false;
+int stepCount = 0;
+int legLength = 100; // pixels per leg before turning
 void loop() {
 
-  //testing for onscreen and how it looks
-  // int dummyx = 125;
-  // int dummyy= 125;
-  // int dummyd= 0;
-  // drawCharacter(dummyx,dummyy,dummyd);
-
-  // dummyx = 50;
-  // dummyy= 50;
-  // dummyd= 1;
-  // drawCharacter(dummyx,dummyy,dummyd);
-
-  // dummyx = 200;
-  // dummyy= 200;
-  // dummyd= 2;
-  // drawCharacter(dummyx,dummyy,dummyd);
-
-  // dummyx = 300;
-  // dummyy= 200;
-  // dummyd= 3;
-  // drawCharacter(dummyx,dummyy,dummyd);
-
-  // // clearCharacter(dummyx,dummyy);
-
-  // dummyx = 177;
-  // dummyy= 177;
-  // dummyd= 3;
-  // drawTrail(dummyx,dummyy,dummyd);
-
-
-
-
+  
   delay(50);
-  //drawCharacter(dummyx,dummyy,dummyd);
-  clearCharacter(dummyx,dummyy,dummyd);
-  dummyx++;
-  //dummyy--;
-  drawCharacter(dummyx,dummyy,dummyd);
-  //drawTrail(dummyx,dummyy,dummyd);
 
-  // dummyx = 177;
-  // dummyy= 177;
-  // dummyd= 3;
-  // drawTrail(dummyx,dummyy,dummyd);
+  if (turned == 1){
+    turned = 0;
+    clearCharacter(dummyx, dummyy, olddummyd);
+  }else{
+    clearCharacter(dummyx, dummyy, dummyd);
+  }
+  restoreTrail(dummyx, dummyy, dummyd);
 
+  // Move based on current direction
+  // if (dummyd == 0) dummyy--;       // up
+  // else if (dummyd == 1) dummyy++;  // down
+  // else if (dummyd == 2) dummyx--;  // left
+  // else if (dummyd == 3) dummyx++;  // right
+
+  drawCharacter(dummyx, dummyy, dummyd);
+
+  //inset new location and direction here
+  stepCount++;
+
+  //need to store old direction here if the old direction here and new direction are different need to set bool turned to true
+
+
+
+  // // Turn every legLength steps: right -> down -> left -> up -> right ...
+  // if (stepCount >= legLength) {
+  //   stepCount = 0;
+  //   olddummyd = dummyd;
+  //   turned = true;
+  //   if (dummyd == 3) dummyd = 1;       // right -> down
+  //   else if (dummyd == 1) dummyd = 2;  // down -> left
+  //   else if (dummyd == 2) dummyd = 0;  // left -> up
+  //   else if (dummyd == 0) dummyd = 3;  // up -> right
+  // }
 }
