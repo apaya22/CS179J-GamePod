@@ -6,10 +6,10 @@
 // ========================
 // DISPLAY CONFIGUARTION
 // ========================
-static const uint8_t TFT_ROT = 0;
-static const uint8_t TS_ROT  = 0;
-static const int SCREEN_W = 240;
-static const int SCREEN_H = 320;
+static const uint8_t TFT_ROT = 1;  // Rotated 90 degrees right for horizontal
+static const uint8_t TS_ROT  = 1;
+static const int SCREEN_W = 320;   // Swapped for horizontal orientation
+static const int SCREEN_H = 240;
 
 // =====================
 // DISPLAY PIN CONFIGURATION
@@ -33,9 +33,25 @@ static const int SCREEN_H = 320;
 // =====================
 // UI STATES
 // =====================
-enum UIState {
-  STATE_HOME = 0
+enum AppState {
+  STATE_HOME = 0,      // Home menu screen
+  STATE_TRON = 1,      // TRON game
+  STATE_SNAKE = 2      // Snake game
 };
+
+// =====================
+// GAME DEFINITIONS
+// =====================
+struct Game {
+  const char* name;
+  AppState state;
+};
+
+static const Game GAMES[] = {
+  {"TRON", STATE_TRON},
+  {"SNAKE", STATE_SNAKE}
+};
+static const int NUM_GAMES = 2;
 
 // =====================
 // UI THEME - COLORS

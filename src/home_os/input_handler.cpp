@@ -1,3 +1,3 @@
 #include "input_handler.h"
 
-// Touch input handling is disabled - keeping file for compatibility
+// Lept for compatibility but no implementations are needed here.
