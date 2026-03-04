@@ -25,5 +25,6 @@ extern bool snakeGameNeedsFullRedraw;
 void initSnakeGame();
 void updateSnakeGame();
 bool checkSnakeCollision();
+void runSnakeGame();
 
 #endif // SNAKE_GAME_H
