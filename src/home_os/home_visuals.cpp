@@ -4,7 +4,7 @@
 
 #include "home_config.h"
 #include "ui_renderer.h"
-#include "input_handler.h"
+#include "../include/controller/controller.h"
 #include "../games/snake_game.h"
 #include "../games/game_tron.h"
 
@@ -135,7 +135,7 @@ void startTronGame() {
   tft.getTextBounds(status, 0, 0, &x1, &y1, &w, &h);
   tft.setCursor((SCREEN_W - (int)w) / 2, 135);
   tft.print(status);
-  runTronGame();
+  //runTronGame();
 
   tft.setTextColor(0x8410);  // grey
   const char* hint = "Press B to return home";

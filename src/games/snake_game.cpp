@@ -1,6 +1,6 @@
 #include "snake_game.h"
 #include "../home_os/home_config.h"
-#include "../home_os/input_handler.h"
+#include "../include/controller/controller.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
