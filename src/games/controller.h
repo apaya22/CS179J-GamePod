@@ -1,7 +1,8 @@
-#ifndef INPUT_HANDLER_H
-#define INPUT_HANDLER_H
+#ifndef CONTROLLER_H
+#define CONTROLLER_H
 
 #include <Arduino.h>
+
 //Buttons
 #define BTN_A 40
 #define BTN_B 41
@@ -130,5 +131,4 @@ inline JoyDir joystickDirection() {
   }
 }
 
-
-#endif // INPUT_HANDLER_H
+#endif // CONTROLLER_H
