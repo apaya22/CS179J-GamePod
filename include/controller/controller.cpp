@@ -1,12 +1,12 @@
-// #include "controller.h"
-// #include <Arduino.h>
-// #include <SPI.h>
-// #include <Adafruit_GFX.h>
-// #include <Adafruit_ILI9341.h>
+#include "controller.h"
+#include <Arduino.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
 
-// // =====================
-// // DISPLAY CONFIGURATION
-// // =====================
+// =====================
+// DISPLAY CONFIGURATION
+// =====================
 // static const int W = 320;
 // static const int H = 240;
 // static const uint8_t TFT_ROT = 1; //1 is for horzontal depending on 0/1/2/3 u will need to switch the w and h

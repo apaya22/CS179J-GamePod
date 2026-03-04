@@ -4,6 +4,9 @@
 
 #include "home_config.h"
 #include "ui_renderer.h"
+#include "input_handler.h"
+#include "../games/snake_game.h"
+#include "../games/game_tron.h"
 
 // =====================
 // GLOBAL VARIABLES
@@ -12,9 +15,24 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST); // PINS DECLAR
 
 bool darkModeEnabled = false;
 
+// State machine variables
+AppState currentState = STATE_HOME;
+int selectedGameIndex = 0;
 unsigned long lastFrameTime = 0;
 
+// Input state tracking - detect state changes, not continuous state
+JoyDir lastJoyDir = CENTER;
+bool lastButtonAPressed = false;
+bool lastButtonBPressed = false;
 
+// Rendering state - only redraw when something changes
+int lastRenderedGameIndex = -1;
+bool lastRenderedDarkMode = false;
+AppState lastRenderedState = static_cast<AppState>(-1);
+
+// =====================
+// INPUT SYSTEM
+// =====================
 
 
 // =====================
@@ -22,24 +40,167 @@ unsigned long lastFrameTime = 0;
 // =====================
 void setup() {
   Serial.begin(115200);
+  delay(1000);
+  Serial.println("System starting...");
+  
+
+
+  // Initialize input handler (controller pins)
+  initController();
 
   SPI.begin(SCLK_PIN, MISO_PIN, MOSI_PIN);
 
   tft.begin();
   tft.setRotation(TFT_ROT);
 
+  // Start at home screen
+  currentState = STATE_HOME;
+  selectedGameIndex = 0;
   renderHome();
 }
 
 
 // =====================
+// INPUT HANDLING
+// =====================
+void handleHomeMenuInput() {
+  // Update joystick state
+  joystickUpdate();
+  JoyDir joyDir = joystickDirection();
+  
+  // Only process joystick input when direction changes
+  if (joyDir != lastJoyDir) {
+    if (joyDir == LEFT) {
+      // Scroll left through games
+      selectedGameIndex = (selectedGameIndex - 1 + NUM_GAMES) % NUM_GAMES;
+      Serial.print("Selected game: ");
+      Serial.println(GAMES[selectedGameIndex].name);
+    } else if (joyDir == RIGHT) {
+      // Scroll right through games
+      selectedGameIndex = (selectedGameIndex + 1) % NUM_GAMES;
+      Serial.print("Selected game: ");
+      Serial.println(GAMES[selectedGameIndex].name);
+    }
+    lastJoyDir = joyDir;
+  }
+
+  // DEBUG: print raw pin reads every ~500ms
+  static uint32_t lastDebugPrint = 0;
+  uint32_t nowDbg = millis();
+  if (nowDbg - lastDebugPrint >= 500) {
+    lastDebugPrint = nowDbg;
+    Serial.print("BTN_A("); Serial.print(BTN_A); Serial.print(")=");
+    Serial.print(digitalRead(BTN_A));
+    Serial.print("  BTN_B("); Serial.print(BTN_B); Serial.print(")=");
+    Serial.println(digitalRead(BTN_B));
+  }
+
+  // Check for button A press - only on state change (press event)
+  bool buttonAPressed = buttonPressed(BTN_A);
+  if (buttonAPressed && !lastButtonAPressed) {
+    Serial.print("Starting game: ");
+    Serial.println(GAMES[selectedGameIndex].name);
+    currentState = GAMES[selectedGameIndex].state;
+  }
+  lastButtonAPressed = buttonAPressed;
+
+  // Check for button B press - only on state change (press event)
+  bool buttonBPressed = buttonPressed(BTN_B);
+  if (buttonBPressed && !lastButtonBPressed) {
+    darkModeEnabled = !darkModeEnabled;
+    Serial.println(darkModeEnabled ? "Dark mode ON" : "Dark mode OFF");
+  }
+  lastButtonBPressed = buttonBPressed;
+}
+
+// =====================
+// GAME LAUNCHER FUNCTIONS
+// =====================
+void startTronGame() {
+  Serial.println("Launching TRON...");
+
+  // TRON launch screen - blocks until B is pressed to return home
+  tft.fillScreen(ILI9341_BLACK);
+
+  tft.setTextColor(ILI9341_CYAN);
+  tft.setTextSize(4);
+  int16_t x1, y1; uint16_t w, h;
+  tft.getTextBounds("TRON", 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((SCREEN_W - (int)w) / 2, 65);
+  tft.print("TRON");
+
+  tft.setTextColor(GAMEPOD_WHITE);
+  tft.setTextSize(1);
+  const char* status = "Connecting to server...";
+  tft.getTextBounds(status, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((SCREEN_W - (int)w) / 2, 135);
+  tft.print(status);
+  runTronGame();
+
+  tft.setTextColor(0x8410);  // grey
+  const char* hint = "Press B to return home";
+  tft.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((SCREEN_W - (int)w) / 2, 200);
+  tft.print(hint);
+  
+
+  // Wait for B button press (edge detect so it doesn't fire immediately)
+  bool lastB = buttonPressed(BTN_B);
+  while (true) {
+    bool curB = buttonPressed(BTN_B);
+    if (curB && !lastB) break;
+    lastB = curB;
+    delay(20);
+  }
+}
+
+void startSnakeGame() {
+  Serial.println("Launching SNAKE...");
+  runSnakeGame();
+}
+
+// =====================
 // MAIN LOOP
 // =====================
 void loop() {
-  // Frame rate limiting (~30fps)
   unsigned long now = millis();
   if (now - lastFrameTime < 33) {
     return;
   }
   lastFrameTime = now;
+
+  // State machine
+  switch (currentState) {
+    case STATE_HOME:
+      // Handle input and render home menu
+      handleHomeMenuInput();
+      
+      // Only redraw if something changed (game selection or dark mode)
+      if (selectedGameIndex != lastRenderedGameIndex || 
+          darkModeEnabled != lastRenderedDarkMode ||
+          currentState != lastRenderedState) {
+        renderGameSelector(selectedGameIndex, GAMES[selectedGameIndex].name, true);
+        lastRenderedGameIndex = selectedGameIndex;
+        lastRenderedDarkMode = darkModeEnabled;
+        lastRenderedState = currentState;
+      }
+      break;
+
+    case STATE_TRON:
+      startTronGame();  // blocks until user presses B
+      currentState = STATE_HOME;
+      selectedGameIndex = 0;
+      break;
+
+    case STATE_SNAKE:
+      startSnakeGame();  // blocks until game over (includes 2s game-over delay)
+      currentState = STATE_HOME;
+      selectedGameIndex = 0;
+      break;
+
+    default:
+      currentState = STATE_HOME;
+      break;
+  }
 }
+
