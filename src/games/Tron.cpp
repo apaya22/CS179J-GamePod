@@ -379,6 +379,188 @@ void clearAllTrail() {
   memset(trailMap, 0, sizeof(trailMap));
 }
 
+//colors spirte purple for first animation
+void deathAnimation1(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+  const uint16_t* sprite = nullptr;
+  int spriteBits;
+
+  if (character_direction == 0 || character_direction == 1) {
+    w = 5; h = 9;
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+  } else {
+    w = 9; h = 5;
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+  }
+
+  if (character_direction == 0)      { sprite = characterSpriteUp;    spriteBits = 5; }
+  else if (character_direction == 1) { sprite = characterSpriteDown;  spriteBits = 5; }
+  else if (character_direction == 2) { sprite = characterSpriteLeft;  spriteBits = 9; }
+  else                               { sprite = characterSpriteRight; spriteBits = 9; }
+
+  for (int row = 0; row < h; row++) {
+    uint16_t row_data = sprite[row];
+    for (int col = 0; col < w; col++) {
+      if (!((row_data >> ((spriteBits - 1) - col)) & 1)) continue;
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240) {
+        tft.drawPixel(px, py, ILI9341_YELLOW);
+      }
+    }
+  }
+}
+
+//colors sprite oragne for second animation
+void deathAnimation2(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+  const uint16_t* sprite = nullptr;
+  int spriteBits;
+
+  if (character_direction == 0 || character_direction == 1) {
+    w = 5; h = 9;
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+  } else {
+    w = 9; h = 5;
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+  }
+
+  if (character_direction == 0)      { sprite = characterSpriteUp;    spriteBits = 5; }
+  else if (character_direction == 1) { sprite = characterSpriteDown;  spriteBits = 5; }
+  else if (character_direction == 2) { sprite = characterSpriteLeft;  spriteBits = 9; }
+  else                               { sprite = characterSpriteRight; spriteBits = 9; }
+
+  for (int row = 0; row < h; row++) {
+    uint16_t row_data = sprite[row];
+    for (int col = 0; col < w; col++) {
+      if (!((row_data >> ((spriteBits - 1) - col)) & 1)) continue;
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240) {
+        tft.drawPixel(px, py, ILI9341_ORANGE);
+      }
+    }
+  }
+}
+
+//colors sprite maroon for third animation
+void deathAnimation3(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+  const uint16_t* sprite = nullptr;
+  int spriteBits;
+
+  if (character_direction == 0 || character_direction == 1) {
+    w = 5; h = 9;
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+  } else {
+    w = 9; h = 5;
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+  }
+
+  if (character_direction == 0)      { sprite = characterSpriteUp;    spriteBits = 5; }
+  else if (character_direction == 1) { sprite = characterSpriteDown;  spriteBits = 5; }
+  else if (character_direction == 2) { sprite = characterSpriteLeft;  spriteBits = 9; }
+  else                               { sprite = characterSpriteRight; spriteBits = 9; }
+
+  for (int row = 0; row < h; row++) {
+    uint16_t row_data = sprite[row];
+    for (int col = 0; col < w; col++) {
+      if (!((row_data >> ((spriteBits - 1) - col)) & 1)) continue;
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240) {
+        tft.drawPixel(px, py, ILI9341_MAROON);
+      }
+    }
+  }
+}
+
+//colors sprite purple for fourth animation
+void deathAnimation4(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+  const uint16_t* sprite = nullptr;
+  int spriteBits;
+
+  if (character_direction == 0 || character_direction == 1) {
+    w = 5; h = 9;
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+  } else {
+    w = 9; h = 5;
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+  }
+
+  if (character_direction == 0)      { sprite = characterSpriteUp;    spriteBits = 5; }
+  else if (character_direction == 1) { sprite = characterSpriteDown;  spriteBits = 5; }
+  else if (character_direction == 2) { sprite = characterSpriteLeft;  spriteBits = 9; }
+  else                               { sprite = characterSpriteRight; spriteBits = 9; }
+
+  for (int row = 0; row < h; row++) {
+    uint16_t row_data = sprite[row];
+    for (int col = 0; col < w; col++) {
+      if (!((row_data >> ((spriteBits - 1) - col)) & 1)) continue;
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240) {
+        tft.drawPixel(px, py, ILI9341_PURPLE);
+      }
+    }
+  }
+}
+
+//sets the character pixels to black and restores trails that could of gotten clipped off screen
+void deathAnimation5(int character_x_cord, int character_y_cord, uint8_t character_direction) {
+  int startX, startY, w, h;
+  const uint16_t* sprite = nullptr;
+  int spriteBits;
+
+  if (character_direction == 0 || character_direction == 1) {
+    w = 5; h = 9;
+    startX = character_x_cord - 2;
+    startY = character_y_cord - 4;
+  } else {
+    w = 9; h = 5;
+    startX = character_x_cord - 4;
+    startY = character_y_cord - 2;
+  }
+
+  if (character_direction == 0)      { sprite = characterSpriteUp;    spriteBits = 5; }
+  else if (character_direction == 1) { sprite = characterSpriteDown;  spriteBits = 5; }
+  else if (character_direction == 2) { sprite = characterSpriteLeft;  spriteBits = 9; }
+  else                               { sprite = characterSpriteRight; spriteBits = 9; }
+
+  // Black out the sprite pixels
+  for (int row = 0; row < h; row++) {
+    uint16_t row_data = sprite[row];
+    for (int col = 0; col < w; col++) {
+      if (!((row_data >> ((spriteBits - 1) - col)) & 1)) continue;
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240) {
+        tft.drawPixel(px, py, ILI9341_BLACK);
+      }
+    }
+  }
+
+  // Restore trails in the bounding box
+  for (int row = 0; row < h; row++) {
+    for (int col = 0; col < w; col++) {
+      int px = startX + col;
+      int py = startY + row;
+      if (px >= 0 && px < 320 && py >= 0 && py < 240 && isTrail(px, py)) {
+        tft.drawPixel(px, py, ILI9341_CYAN);
+      }
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   randomSeed(esp_random());
@@ -403,6 +585,8 @@ int olddummyd = 0;
 bool turned = false;
 int stepCount = 0;
 int legLength = 100; // pixels per leg before turning
+bool playerAlive = true;
+int deathFrameCounter = 0;
 void loop() {
 
   
@@ -417,28 +601,54 @@ void loop() {
   restoreTrail(dummyx, dummyy, dummyd);
 
   // Move based on current direction
-  // if (dummyd == 0) dummyy--;       // up
-  // else if (dummyd == 1) dummyy++;  // down
-  // else if (dummyd == 2) dummyx--;  // left
-  // else if (dummyd == 3) dummyx++;  // right
+  if (playerAlive == true){
+    if (dummyd == 0) dummyy--;       // up
+    else if (dummyd == 1) dummyy++;  // down
+    else if (dummyd == 2) dummyx--;  // left
+    else if (dummyd == 3) dummyx++;  // right
+  }
 
-  drawCharacter(dummyx, dummyy, dummyd);
+
+  //if the player is alive draw the character, if not play death animation over 5 frames
+  if (playerAlive == true){
+    drawCharacter(dummyx, dummyy, dummyd);
+  }else if (playerAlive == false && deathFrameCounter == 0){
+    deathFrameCounter++;
+    deathAnimation1(dummyx,dummyy,dummyd);
+  }else if (playerAlive == false && deathFrameCounter == 1){
+    deathFrameCounter++;
+    deathAnimation2(dummyx,dummyy,dummyd);
+  }else if (playerAlive == false && deathFrameCounter == 2){
+    deathFrameCounter++;
+    deathAnimation3(dummyx,dummyy,dummyd);
+  }else if (playerAlive == false && deathFrameCounter == 3){
+    deathFrameCounter++;
+    deathAnimation4(dummyx,dummyy,dummyd);
+  }else if (playerAlive == false && deathFrameCounter == 4){
+    deathFrameCounter++;
+    deathAnimation5(dummyx,dummyy,dummyd);
+  }else{
+
+  }
 
   //inset new location and direction here
-  stepCount++;
+  if (playerAlive == true){
+    stepCount++;
+  }
 
   //need to store old direction here if the old direction here and new direction are different need to set bool turned to true
 
 
 
   // // Turn every legLength steps: right -> down -> left -> up -> right ...
-  // if (stepCount >= legLength) {
-  //   stepCount = 0;
-  //   olddummyd = dummyd;
-  //   turned = true;
-  //   if (dummyd == 3) dummyd = 1;       // right -> down
-  //   else if (dummyd == 1) dummyd = 2;  // down -> left
-  //   else if (dummyd == 2) dummyd = 0;  // left -> up
-  //   else if (dummyd == 0) dummyd = 3;  // up -> right
-  // }
+  if (stepCount >= legLength) {
+    stepCount = 0;
+    playerAlive=false;
+    //olddummyd = dummyd;
+    //turned = true;
+    //if (dummyd == 3) dummyd = 1;       // right -> down
+    //else if (dummyd == 1) dummyd = 2;  // down -> left
+    //else if (dummyd == 2) dummyd = 0;  // left -> up
+    //else if (dummyd == 0) dummyd = 3;  // up -> right
+  }
 }
