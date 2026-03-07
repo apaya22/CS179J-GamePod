@@ -85,9 +85,6 @@ void initSnakeGame() {
   snakeGameNeedsFullRedraw = true;
 }
 
-void updateSnakeGame() {
-  // Logic is inlined in runSnakeGame(); stub kept for header compatibility.
-}
 
 bool checkSnakeCollision() {
   int hx = snakeGame.snake[0].x;
@@ -149,11 +146,12 @@ void runSnakeGame() {
 
     bool ateApple = (newHX == snakeGame.appleX && newHY == snakeGame.appleY);
 
+    // Save old tail before shifting (needed to extend snake on growth)
+    SnakeGame::Segment oldTail = snakeGame.snake[snakeGame.snakeLength - 1];
+
     // Erase tail only when not growing
     if (!ateApple) {
-      drawCell(snakeGame.snake[snakeGame.snakeLength - 1].x / GRID,
-               (snakeGame.snake[snakeGame.snakeLength - 1].y - HEADER_H) / GRID,
-               ILI9341_BLACK);
+      drawCell(oldTail.x / GRID, (oldTail.y - HEADER_H) / GRID, ILI9341_BLACK);
     }
 
     // Shift body
@@ -167,6 +165,7 @@ void runSnakeGame() {
 
     if (ateApple) {
       snakeGame.snakeLength++;
+      snakeGame.snake[snakeGame.snakeLength - 1] = oldTail;
       snakeGame.score += 10;
       spawnApple();
       drawCell(snakeGame.appleX / GRID, (snakeGame.appleY - HEADER_H) / GRID, ILI9341_RED);
