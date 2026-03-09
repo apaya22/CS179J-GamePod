@@ -40,6 +40,12 @@ static BikeState bikes[MAX_BIKES] = {};
 static bool wallsDrawn = false;
 static bool gameOver   = false;
 
+// Death animation state per bike
+static int  deathFrame[MAX_BIKES]    = { -1, -1, -1 };  // -1 = not dying
+static bool deathDone[MAX_BIKES]     = { false, false, false };
+static uint32_t lastDeathFrameMs[MAX_BIKES] = { 0, 0, 0 };
+static const uint32_t DEATH_FRAME_INTERVAL_MS = 120;  // ms between death frames
+
 // ============================================
 //  COLORS
 //  Own bike is drawn WHITE
@@ -79,6 +85,11 @@ static void resetDisplayState() {
   }
   wallsDrawn = false;
   gameOver   = false;
+  for (int i = 0; i < MAX_BIKES; i++) {
+    deathFrame[i] = -1;
+    deathDone[i]  = false;
+    lastDeathFrameMs[i] = 0;
+  }
   Serial.println("[Tron] Display state reset");
 }
 
@@ -165,13 +176,30 @@ static void processPacket(const String& json) {
 
     uint16_t color  = (id == PLAYER_ID) ? OWN_BIKE_COLOR : BIKE_COLORS[idx];
 
+    // Skip bikes that are already done with their death animation
+    if (deathDone[idx]) continue;
 
+    // Skip unchanged positions (but still allow death anim to trigger)
     if (bikes[idx].valid &&
         bikes[idx].x == newX &&
         bikes[idx].y == newY &&
-        bikes[idx].dir == newDir) {
+        bikes[idx].dir == newDir &&
+        bikes[idx].alive == alive) {
       continue;
     }
+
+    // Detect alive→dead transition: start death animation
+    if (bikes[idx].valid && bikes[idx].alive && !alive) {
+      bikes[idx].alive = false;
+      deathFrame[idx] = 0;
+      lastDeathFrameMs[idx] = millis();
+      playDeathFrame(bikes[idx].x, bikes[idx].y, bikes[idx].dir, 0, BIKE_COLORS);
+      Serial.printf("[Tron] Player %d died – starting death animation\n", id);
+      continue;
+    }
+
+    // If this bike is mid-death-animation, don't update its position
+    if (deathFrame[idx] >= 0) continue;
 
     // Clear old sprite, restore any trail underneath
     if (bikes[idx].valid) {
@@ -183,6 +211,33 @@ static void processPacket(const String& json) {
 
     if (alive) {
       drawCharacter(newX, newY, newDir, color, id);
+    }
+  }
+}
+
+// ============================================
+//  DEATH ANIMATION TICKER
+//  Call every loop iteration to advance frames
+// ============================================
+
+static void tickDeathAnimations() {
+  uint32_t now = millis();
+  for (int i = 0; i < MAX_BIKES; i++) {
+    if (deathFrame[i] < 0 || deathDone[i]) continue;
+
+    if (now - lastDeathFrameMs[i] >= DEATH_FRAME_INTERVAL_MS) {
+      deathFrame[i]++;
+      lastDeathFrameMs[i] = now;
+
+      if (deathFrame[i] >= DEATH_FRAME_COUNT) {
+        // Animation complete
+        deathDone[i] = true;
+        deathFrame[i] = -1;
+        Serial.printf("[Tron] Player %d death animation complete\n", i + 1);
+      } else {
+        playDeathFrame(bikes[i].x, bikes[i].y, bikes[i].dir,
+                       deathFrame[i], BIKE_COLORS);
+      }
     }
   }
 }
@@ -300,5 +355,8 @@ void runTronGame() {
         tcpBuffer += c;
       }
     }
+
+    // ── Advance death animations ─────────────────────────────────────
+    tickDeathAnimations();
   }
 }
