@@ -27,7 +27,7 @@ static const uint8_t Screen_ROT = 1; //1 is for horzontal depending on 0/1/2/3 u
 #define MOSI_PIN  11
 #define MISO_PIN  13
 
-Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+extern Adafruit_ILI9341 tft;
 
 // struct Player {
 //   int x, y;

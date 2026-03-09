@@ -1,300 +1,304 @@
-// #include <Arduino.h>
-// #include <SPI.h>
-// #include <Adafruit_GFX.h>
-// #include <Adafruit_ILI9341.h>
+#include "game_tron.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
+#include <ArduinoJson.h>
 
-// // =====================
-// // TODO Please Read
-// // =====================
-// /*
-//  * still need to tweak some bugs with left over pixels from turning and when and where does the colision actually happen
-//  * from the bike to the trail, the trail could also be thicker so we shoul decide and actually map out the game
-//  * for example do we want a trail to be 3 pixels thick or keep it as one, no matter what it needs to be a odd number
-//  * our bike will also reflect off that and we should always have the head of the bike be the start of colision which is not 
-//  * happening right now but that is an easy fix. Lastly if the bike turns and its edges clip a trial how do we want to flush that out
-//  * these are all questions that should be answered before the next steps
-//  */
+#include "tron_visuals.h"
+#include "controller/controller.h"
+#include "network/tcp_client.h"
+#include "secrets.h"
 
-// /*
-//  * Tron test game for ILI9341 (240x320)
-//  * Same logic as the old 128x128 ST7735 version.
-//  * Adds a bike-shaped head sprite that rotates with direction.
-//  */
+// ============================================
+//  CONFIGURATION
+//  Flash each ESP32 with a different PLAYER_ID:
+//    Board 1 → PLAYER_ID 1  (CYAN  bike)
+//    Board 2 → PLAYER_ID 2  (RED   bike)
+//    Board 3 → PLAYER_ID 3  (GREEN bike)
+// ============================================
 
-// // =====================
-// // DISPLAY CONFIGURATION
-// // =====================
-// static const int W = 320;
-// static const int H = 240;
-// static const uint8_t TFT_ROT = 1; //1 is for horzontal depending on 0/1/2/3 u will need to switch the w and h
+#define PLAYER_ID            3   // change this per programmed board
+#define RECONNECT_DELAY_MS   3000
+#define MAX_BIKES            3
+#define JOY_SEND_INTERVAL_MS 100
 
-// // =====================
-// // DISPLAY PIN CONFIGURATION (your new wiring)
-// // =====================
-// #define TFT_CS    4
-// #define TFT_DC    15
-// #define TFT_RST   9
-// #define SCLK_PIN  12
-// #define MOSI_PIN  11
-// #define MISO_PIN  13
+#if PLAYER_ID < 1 || PLAYER_ID > 3
+  #error "PLAYER_ID must be 1, 2, or 3"
+#endif
 
-// Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+// ============================================
+//  BIKE STATE
+// ============================================
 
-// enum Dir : uint8_t { UP=0, RIGHT=1, DOWN=2, LEFT=3 };
+struct BikeState {
+  int     x, y;
+  uint8_t dir;
+  bool    alive;
+  bool    valid;
+};
 
-// struct Player {
-//   int x, y;
-//   Dir dir;
-//   uint16_t color;
-//   bool alive;
-// };
+static BikeState bikes[MAX_BIKES] = {};
+static bool wallsDrawn = false;
+static bool gameOver   = false;
 
-// Player p1;
+// ============================================
+//  COLORS
+//  Own bike is drawn WHITE
+// ============================================
 
-// // Occupancy grid: W*H bits
-// static uint8_t occ[(W * H) / 8];
+static const uint16_t BIKE_COLORS[MAX_BIKES] = {
+  ILI9341_CYAN,   // Player 1
+  ILI9341_RED,    // Player 2
+  ILI9341_GREEN   // Player 3
+};
 
-// inline int idx(int x, int y) { return y * W + x; }
-// inline bool inBounds(int x, int y) { return x >= 0 && x < W && y >= 0 && y < H; }
+static const uint16_t OWN_BIKE_COLOR = ILI9341_WHITE;
 
-// inline bool occGet(int x, int y) {
-//   int i = idx(x, y);
-//   return (occ[i >> 3] >> (i & 7)) & 1;
-// }
-// inline void occSet(int x, int y) {
-//   int i = idx(x, y);
-//   occ[i >> 3] |= (1 << (i & 7));
-// }
-// inline void occClearAll() { memset(occ, 0, sizeof(occ)); }
+// ============================================
+//  HELPERS
+// ============================================
 
-// static const uint32_t TICK_MS = 40; // 25 updates/sec
-// uint32_t lastTick = 0;
-// bool gameOver = false;
+static void drawWalls(int left, int right, int top, int bottom) {
+  tft.drawRect(left, top, (right - left) + 1, (bottom - top) + 1, ILI9341_WHITE);
+}
 
-// // =====================
-// // BIKE SPRITE (procedural)
-// // =====================
-// // We treat (x,y) as the "center" of the bike. We draw a small bike silhouette using
-// // rectangles/pixels. This is fast and avoids bitmaps.
-// static const int BIKE_HALF_W = 5; // sprite ~11 wide when horizontal
-// static const int BIKE_HALF_H = 3; // sprite ~7 high when horizontal
+// idk why they're flipped
+static uint8_t dirToInt(const char* dir) {
+  if (strcmp(dir, "UP")    == 0) return 1;  // visual DOWN sprite
+  if (strcmp(dir, "DOWN")  == 0) return 0;  // visual UP sprite
+  if (strcmp(dir, "LEFT")  == 0) return 3;  // visual RIGHT sprite
+  if (strcmp(dir, "RIGHT") == 0) return 2;  // visual LEFT sprite
+  return 2;
+}
 
-// // erase old sprite by clearing its bounding box, then restore the trail center pixel
-// void eraseBikeSprite(int x, int y, Dir d, uint16_t trailColor) {
-//   // bounding box depends on orientation
-//   int x0, y0, w, h;
-//   if (d == LEFT || d == RIGHT) {
-//     x0 = x - BIKE_HALF_W;  y0 = y - BIKE_HALF_H;
-//     w  = 2*BIKE_HALF_W + 1; h = 2*BIKE_HALF_H + 1;
-//   } else {
-//     x0 = x - BIKE_HALF_H;  y0 = y - BIKE_HALF_W;
-//     w  = 2*BIKE_HALF_H + 1; h = 2*BIKE_HALF_W + 1;
-//   }
+// Reset display-side state (FIXME: issues with reconnection)
+static void resetDisplayState() {
+  resetScreenBeforeStart();
+  memset(trailMap, 0, sizeof(trailMap));
+  for (int i = 0; i < MAX_BIKES; i++) {
+    bikes[i] = { 0, 0, 3, true, false };
+  }
+  wallsDrawn = false;
+  gameOver   = false;
+  Serial.println("[Tron] Display state reset");
+}
 
-//   // Redraw background/trail using occupancy grid (so trail stays intact)
-//   for (int yy = y0; yy < y0 + h; yy++) {
-//     if (yy < 0 || yy >= H) continue;
-//     for (int xx = x0; xx < x0 + w; xx++) {
-//       if (xx < 0 || xx >= W) continue;
+static void sendDir(const char* dir) {
+  if (!tcp_is_connected()) return;
+  tcp_send_direction(PLAYER_ID, dir);
+}
 
-//       // If the trail exists here, draw it; otherwise draw background.
-//       tft.drawPixel(xx, yy, occGet(xx, yy) ? trailColor : ILI9341_BLACK);
-//     }
-//   }
-// }
+static void connectToServer() {
+  Serial.println("[Tron] Connecting to WiFi...");
+  while (!wifi_connect(WIFI_SSID, WIFI_PASS)) {
+    Serial.println("[Tron] WiFi failed, retrying...");
+    delay(RECONNECT_DELAY_MS);
+  }
 
-// void drawBikeSprite(int x, int y, Dir d, uint16_t c) {
-//   // A tiny "bike": cockpit + body + two wheels.
-//   // Drawn differently by direction.
+  Serial.println("[Tron] Connecting to Tron server...");
+  while (!tcp_connect(SERVER_IP, SERVER_PORT)) {
+    Serial.println("[Tron] TCP failed, retrying...");
+    delay(RECONNECT_DELAY_MS);
+  }
 
-//   if (d == RIGHT) {
-//     // wheels
-//     tft.drawPixel(x-4, y-2, c);
-//     tft.drawPixel(x-4, y+2, c);
-//     tft.drawPixel(x+4, y-2, c);
-//     tft.drawPixel(x+4, y+2, c);
+  tcp_send_join(PLAYER_ID);
+  Serial.printf("[Tron] Joined as Player %d\n", PLAYER_ID);
+}
 
-//     // body
-//     tft.drawFastHLine(x-3, y, 7, c);      // main line
-//     tft.drawFastHLine(x-2, y-1, 5, c);    // thickness
-//     tft.drawFastHLine(x-2, y+1, 5, c);
+// ============================================
+//  PACKET PROCESSING
+// ============================================
 
-//     // cockpit nose
-//     tft.drawPixel(x+5, y, c);
-//     tft.drawPixel(x+5, y-1, c);
-//     tft.drawPixel(x+5, y+1, c);
+static bool prevGameOver = false;
 
-//   } else if (d == LEFT) {
-//     // wheels
-//     tft.drawPixel(x-4, y-2, c);
-//     tft.drawPixel(x-4, y+2, c);
-//     tft.drawPixel(x+4, y-2, c);
-//     tft.drawPixel(x+4, y+2, c);
+static void processPacket(const String& json) {
 
-//     // body
-//     tft.drawFastHLine(x-3, y, 7, c);
-//     tft.drawFastHLine(x-2, y-1, 5, c);
-//     tft.drawFastHLine(x-2, y+1, 5, c);
+  StaticJsonDocument<2048> doc;
 
-//     // cockpit nose (to the left)
-//     tft.drawPixel(x-5, y, c);
-//     tft.drawPixel(x-5, y-1, c);
-//     tft.drawPixel(x-5, y+1, c);
+  DeserializationError err = deserializeJson(doc, json);
+  if (err) {
+    Serial.print("[Tron] JSON parse error: ");
+    Serial.println(err.c_str());
+    return;
+  }
 
-//   } else if (d == UP) {
-//     // wheels
-//     tft.drawPixel(x-2, y-4, c);
-//     tft.drawPixel(x+2, y-4, c);
-//     tft.drawPixel(x-2, y+4, c);
-//     tft.drawPixel(x+2, y+4, c);
+  bool curGameOver = doc["game_over"] | false;
 
-//     // body
-//     tft.drawFastVLine(x,   y-3, 7, c);
-//     tft.drawFastVLine(x-1, y-2, 5, c);
-//     tft.drawFastVLine(x+1, y-2, 5, c);
+  // if round reset
+  if (prevGameOver && !curGameOver) {
+    resetDisplayState();
+  }
+  prevGameOver = curGameOver;
 
-//     // cockpit nose (up)
-//     tft.drawPixel(x,   y-5, c);
-//     tft.drawPixel(x-1, y-5, c);
-//     tft.drawPixel(x+1, y-5, c);
+  // boarder redrawn per game
+  if (!wallsDrawn) {
+    drawWalls(
+      doc["wall_left"]   | 0,
+      doc["wall_right"]  | 319,
+      doc["wall_top"]    | 0,
+      doc["wall_bottom"] | 239
+    );
+    wallsDrawn = true;
+  }
 
-//   } else { // DOWN
-//     // wheels
-//     tft.drawPixel(x-2, y-4, c);
-//     tft.drawPixel(x+2, y-4, c);
-//     tft.drawPixel(x-2, y+4, c);
-//     tft.drawPixel(x+2, y+4, c);
+  // game over & winner text
+  if (curGameOver && !gameOver) {
+    gameOver = true;
+    const char* wt = doc["winner_text"] | "GAME OVER";
+    tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
+    tft.setTextSize(2);
+    tft.setCursor(60, 110);
+    tft.print(wt[0] ? wt : "GAME OVER");
+    Serial.printf("[Tron] Game over: %s\n", wt);
+  }
 
-//     // body
-//     tft.drawFastVLine(x,   y-3, 7, c);
-//     tft.drawFastVLine(x-1, y-2, 5, c);
-//     tft.drawFastVLine(x+1, y-2, 5, c);
+  // Update every bike in the packet
+  JsonArray bikesArr = doc["bikes"].as<JsonArray>();
+  for (JsonObject bike : bikesArr) {
+    int id = bike["id"] | 0;
+    if (id < 1 || id > MAX_BIKES) continue;
 
-//     // cockpit nose (down)
-//     tft.drawPixel(x,   y+5, c);
-//     tft.drawPixel(x-1, y+5, c);
-//     tft.drawPixel(x+1, y+5, c);
-//   }
+    int      idx    = id - 1;
+    int      newX   = bike["col"] | 0;
+    int      newY   = bike["row"] | 0;
+    uint8_t  newDir = dirToInt(bike["direction"] | "RIGHT");
+    bool     alive  = bike["alive"] | true;
 
-//   // ensure center is always on
-//   tft.drawPixel(x, y, c);
-// }
+    uint16_t color  = (id == PLAYER_ID) ? OWN_BIKE_COLOR : BIKE_COLORS[idx];
 
-// // Fake input (same as old)
-// void fakeInput(Player &p) {
-//   static uint32_t lastTurn = 0;
-//   if (millis() - lastTurn > 1000) {
-//     lastTurn = millis();
 
-//     int r = random(0, 3); // 0 straight, 1 left, 2 right
-//     if (r == 1) p.dir = (Dir)((p.dir + 3) & 3);
-//     else if (r == 2) p.dir = (Dir)((p.dir + 1) & 3);
-//   }
-// }
+    if (bikes[idx].valid &&
+        bikes[idx].x == newX &&
+        bikes[idx].y == newY &&
+        bikes[idx].dir == newDir) {
+      continue;
+    }
 
-// void resetGame() {
-//   gameOver = false;
-//   occClearAll();
-//   tft.fillScreen(ILI9341_BLACK);
+    // Clear old sprite, restore any trail underneath
+    if (bikes[idx].valid) {
+      clearCharacter(bikes[idx].x, bikes[idx].y, bikes[idx].dir);
+      restoreTrail(bikes[idx].x, bikes[idx].y, bikes[idx].dir, BIKE_COLORS);
+    }
 
-//   p1.x = W / 4;
-//   p1.y = H / 2;
-//   p1.dir = RIGHT;
-//   p1.color = ILI9341_CYAN;
-//   p1.alive = true;
+    bikes[idx] = { newX, newY, newDir, alive, true };
 
-//   occSet(p1.x, p1.y);
-//   tft.drawPixel(p1.x, p1.y, p1.color);
+    if (alive) {
+      drawCharacter(newX, newY, newDir, color, id);
+    }
+  }
+}
 
-//   // draw initial bike head
-//   drawBikeSprite(p1.x, p1.y, p1.dir, p1.color);
-// }
+// ============================================
+//  MAIN GAME FUNCTION
+// ============================================
 
-// void drawGameOver() {
-//   int sw = tft.width();
-//   int sh = tft.height();
+void runTronGame() {
+  // Reset all game state (clears screen too)
+  prevGameOver = false;
+  resetDisplayState();
 
-//   tft.fillRect(0, sh/2 - 20, sw, 40, ILI9341_BLACK);
-//   tft.setTextColor(ILI9341_RED);
-//   tft.setTextSize(2);
+  // ── SPLASH SCREEN (visible while TCP connects) ────────────────────────────
+  int16_t x1, y1; uint16_t w, h;
 
-//   const char *msg = "GAME OVER";
-//   int16_t x1, y1;
-//   uint16_t tw, th;
-//   tft.getTextBounds(msg, 0, 0, &x1, &y1, &tw, &th);
+  tft.setTextColor(ILI9341_CYAN);
+  tft.setTextSize(4);
+  tft.getTextBounds("TRON", 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((Width_Sreen - (int)w) / 2, 65);
+  tft.print("TRON");
 
-//   tft.setCursor((sw - (int)tw)/2, (sh - (int)th)/2);
-//   tft.print(msg);
-// }
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(1);
+  const char* connStatus = "Connecting to server...";
+  tft.getTextBounds(connStatus, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((Width_Sreen - (int)w) / 2, 135);
+  tft.print(connStatus);
 
-// void stepPlayer(Player &p) {
-//   if (!p.alive) return;
+  tft.setTextColor(0x8410);
+  const char* hint = "Press B to return home";
+  tft.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((Width_Sreen - (int)w) / 2, 200);
+  tft.print(hint);
 
-//   int oldx = p.x, oldy = p.y;
-//   Dir oldDir = p.dir;
+  // Connect while the splash screen stays visible
+  connectToServer();
 
-//   int nx = p.x;
-//   int ny = p.y;
+  // ── PLAYER ID SCREEN ──────────────────────────────────────────────────────
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setTextColor(BIKE_COLORS[PLAYER_ID - 1]);
+  tft.setTextSize(3);
+  tft.getTextBounds("PLAYER X", 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((Width_Sreen - (int)w) / 2, 90);
+  tft.printf("PLAYER %d", PLAYER_ID);
 
-//   switch (p.dir) {
-//     case UP:    ny--; break;
-//     case RIGHT: nx++; break;
-//     case DOWN:  ny++; break;
-//     case LEFT:  nx--; break;
-//   }
+  tft.setTextColor(0x8410);
+  tft.setTextSize(1);
+  tft.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor((Width_Sreen - (int)w) / 2, 160);
+  tft.print(hint);
 
-//   // wall collision
-//   if (!inBounds(nx, ny)) {
-//     p.alive = false;
-//     gameOver = true;
-//     return;
-//   }
+  delay(1500);
 
-//   // trail collision (trail is 1px wide in occ[])
-//   if (occGet(nx, ny)) {
-//     p.alive = false;
-//     gameOver = true;
-//     return;
-//   }
+  // Clear for game arena
+  resetScreenBeforeStart();
 
-//   // erase old bike sprite and restore trail pixel at its center
-//   eraseBikeSprite(oldx, oldy, oldDir, p.color);
+  JoyDir   lastJoyDir    = CENTER;
+  uint32_t lastJoySendMs = 0;
 
-//   // then move and draw new trail + bike
-//   p.x = nx; p.y = ny;
-//   occSet(p.x, p.y);
-//   tft.drawPixel(p.x, p.y, p.color);
-//   drawBikeSprite(p.x, p.y, p.dir, p.color);
-// }
+  bool lastB = buttonPressed(BTN_B);
 
-// void setup() {
-//   Serial.begin(115200);
-//   randomSeed(esp_random());
+  String tcpBuffer;
 
-//   SPI.begin(SCLK_PIN, MISO_PIN, MOSI_PIN, TFT_CS);
-//   tft.begin();
-//   tft.setRotation(TFT_ROT);
+  while (true) {
+    // ── Return to home  ──────────────────────────────────────────
+    bool curB = buttonPressed(BTN_B);
+    if (curB && !lastB) {
+      Serial.println("[Tron] Returning to home menu...");
+      tcp_disconnect();
+      wifi_disconnect();
+      resetScreenBeforeStart();
+      return;
+    }
+    lastB = curB;
 
-//   resetGame();
-// }
+    // ── Reconnect ──────────────────────────────────────
+    if (!wifi_is_connected() || !tcp_is_connected()) {
+      Serial.println("[Tron] Lost connection, reconnecting...");
+      tcp_disconnect();
+      wifi_disconnect();
+      delay(RECONNECT_DELAY_MS);
+      resetDisplayState();
+      connectToServer();
+      continue;
+    }
 
-// void loop() {
-//   if (gameOver) {
-//     static bool shown = false;
-//     if (!shown) { drawGameOver(); shown = true; }
+    uint32_t now = millis();
 
-//     static uint32_t overAt = 0;
-//     if (overAt == 0) overAt = millis();
-//     if (millis() - overAt > 2000) { overAt = 0; shown = false; resetGame(); }
+    // ── Joystick  ───────────────────────────────
+    JoyDir dir = joystickDirection();
 
-//     delay(10);
-//     return;
-//   }
+    if (dir != CENTER && dir != lastJoyDir && (now - lastJoySendMs >= JOY_SEND_INTERVAL_MS)) {
+      switch (dir) {
+        case UP:    sendDir("UP");    break;
+        case DOWN:  sendDir("DOWN");  break;
+        case LEFT:  sendDir("RIGHT"); break;  // axes inverted vs server (need to fix hardcode for now)
+        case RIGHT: sendDir("LEFT");  break;
+        default: break;
+      }
+      lastJoyDir    = dir;
+      lastJoySendMs = now;
+    }
+    if (dir == CENTER) lastJoyDir = CENTER;
 
-//   uint32_t now = millis();
-//   if (now - lastTick < TICK_MS) return;
-//   lastTick = now;
-
-//   fakeInput(p1);
-//   stepPlayer(p1);
-// }
+    // ── Drain ALL available TCP bytes  ────────────────────────────────
+    while (tcp_available() > 0) {
+      char c = (char)tcp_read();
+      if (c == '\n') {
+        if (tcpBuffer.length() > 0) {
+          processPacket(tcpBuffer);
+          tcpBuffer = "";
+        }
+      } else if (c != '\r') {
+        tcpBuffer += c;
+      }
+    }
+  }
+}

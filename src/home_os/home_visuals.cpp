@@ -43,8 +43,6 @@ void setup() {
   delay(1000);
   Serial.println("System starting...");
   
-
-
   // Initialize input handler (controller pins)
   initController();
 
@@ -67,7 +65,7 @@ void handleHomeMenuInput() {
   // Update joystick state
   joystickUpdate();
   JoyDir joyDir = joystickDirection();
-  
+
   // Only process joystick input when direction changes
   if (joyDir != lastJoyDir) {
     if (joyDir == LEFT) {
@@ -118,40 +116,7 @@ void handleHomeMenuInput() {
 // =====================
 void startTronGame() {
   Serial.println("Launching TRON...");
-
-  // TRON launch screen - blocks until B is pressed to return home
-  tft.fillScreen(ILI9341_BLACK);
-
-  tft.setTextColor(ILI9341_CYAN);
-  tft.setTextSize(4);
-  int16_t x1, y1; uint16_t w, h;
-  tft.getTextBounds("TRON", 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((SCREEN_W - (int)w) / 2, 65);
-  tft.print("TRON");
-
-  tft.setTextColor(GAMEPOD_WHITE);
-  tft.setTextSize(1);
-  const char* status = "Connecting to server...";
-  tft.getTextBounds(status, 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((SCREEN_W - (int)w) / 2, 135);
-  tft.print(status);
-  //runTronGame();
-
-  tft.setTextColor(0x8410);  // grey
-  const char* hint = "Press B to return home";
-  tft.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((SCREEN_W - (int)w) / 2, 200);
-  tft.print(hint);
-  
-
-  // Wait for B button press (edge detect so it doesn't fire immediately)
-  bool lastB = buttonPressed(BTN_B);
-  while (true) {
-    bool curB = buttonPressed(BTN_B);
-    if (curB && !lastB) break;
-    lastB = curB;
-    delay(20);
-  }
+  runTronGame();
 }
 
 void startSnakeGame() {
@@ -174,9 +139,9 @@ void loop() {
     case STATE_HOME:
       // Handle input and render home menu
       handleHomeMenuInput();
-      
+
       // Only redraw if something changed (game selection or dark mode)
-      if (selectedGameIndex != lastRenderedGameIndex || 
+      if (selectedGameIndex != lastRenderedGameIndex ||
           darkModeEnabled != lastRenderedDarkMode ||
           currentState != lastRenderedState) {
         renderGameSelector(selectedGameIndex, GAMES[selectedGameIndex].name, true);
@@ -203,4 +168,3 @@ void loop() {
       break;
   }
 }
-
