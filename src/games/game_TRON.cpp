@@ -107,21 +107,35 @@ static void sendDir(const char* dir) {
   tcp_send_direction(PLAYER_ID, dir);
 }
 
-static void connectToServer() {
+static bool bButtonPressed() { return buttonPressed(BTN_B); }
+
+// Returns false if the user pressed B to cancel during connection.
+static bool connectToServer() {
   Serial.println("[Tron] Connecting to WiFi...");
-  while (!wifi_connect(WIFI_SSID, WIFI_PASS)) {
+  while (!wifi_connect(WIFI_SSID, WIFI_PASS, 10000, bButtonPressed)) {
+    if (bButtonPressed()) return false;
     Serial.println("[Tron] WiFi failed, retrying...");
-    delay(RECONNECT_DELAY_MS);
+    uint32_t start = millis();
+    while (millis() - start < (uint32_t)RECONNECT_DELAY_MS) {
+      if (bButtonPressed()) return false;
+      delay(10);
+    }
   }
 
   Serial.println("[Tron] Connecting to Tron server...");
   while (!tcp_connect(SERVER_IP, SERVER_PORT)) {
+    if (bButtonPressed()) return false;
     Serial.println("[Tron] TCP failed, retrying...");
-    delay(RECONNECT_DELAY_MS);
+    uint32_t start = millis();
+    while (millis() - start < (uint32_t)RECONNECT_DELAY_MS) {
+      if (bButtonPressed()) return false;
+      delay(10);
+    }
   }
 
   tcp_send_join(PLAYER_ID);
   Serial.printf("[Tron] Joined as Player %d\n", PLAYER_ID);
+  return true;
 }
 
 // ============================================
@@ -283,7 +297,12 @@ void runTronGame() {
   tft.print(hint);
 
   // Connect while the splash screen stays visible
-  connectToServer();
+  if (!connectToServer()) {
+    tcp_disconnect();
+    wifi_disconnect();
+    resetScreenBeforeStart();
+    return;
+  }
 
   // ── PLAYER ID SCREEN ──────────────────────────────────────────────────────
   tft.fillScreen(ILI9341_BLACK);
@@ -331,7 +350,12 @@ void runTronGame() {
       wifi_disconnect();
       delay(RECONNECT_DELAY_MS);
       resetDisplayState();
-      connectToServer();
+      if (!connectToServer()) {
+        tcp_disconnect();
+        wifi_disconnect();
+        resetScreenBeforeStart();
+        return;
+      }
       continue;
     }
 
@@ -345,7 +369,7 @@ void runTronGame() {
       switch (dir) {
         case UP:    newDirStr = "UP";    break;
         case DOWN:  newDirStr = "DOWN";  break;
-        case LEFT:  newDirStr = "RIGHT"; break;  // axes inverted vs server 
+        case LEFT:  newDirStr = "RIGHT"; break;  // axes inverted vs server
         case RIGHT: newDirStr = "LEFT";  break;
         default: break;
       }

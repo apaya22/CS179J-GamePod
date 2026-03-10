@@ -17,8 +17,9 @@
 // ============================================
 
 // Connect to a WiFi network. Blocks until connected or timeout.
-// Returns true on success, false on timeout.
-bool wifi_connect(const char* ssid, const char* password, unsigned long timeoutMs = 10000);
+// Returns true on success, false on timeout or if shouldCancel() returns true.
+// shouldCancel is an optional callback polled every 10 ms during the wait.
+bool wifi_connect(const char* ssid, const char* password, unsigned long timeoutMs = 10000, bool (*shouldCancel)() = nullptr);
 
 // Returns true if WiFi is currently connected.
 bool wifi_is_connected();

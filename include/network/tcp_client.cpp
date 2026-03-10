@@ -6,7 +6,7 @@ static WiFiClient tcpClient;
 //  WIFI
 // ============================================
 
-bool wifi_connect(const char* ssid, const char* password, unsigned long timeoutMs) {
+bool wifi_connect(const char* ssid, const char* password, unsigned long timeoutMs, bool (*shouldCancel)()) {
   Serial.printf("[WiFi] Connecting to %s", ssid);
   WiFi.begin(ssid, password);
 
@@ -16,7 +16,11 @@ bool wifi_connect(const char* ssid, const char* password, unsigned long timeoutM
       Serial.println("\n[WiFi] Connection timed out!");
       return false;
     }
-    delay(500);
+    if (shouldCancel && shouldCancel()) {
+      Serial.println("\n[WiFi] Cancelled by user.");
+      return false;
+    }
+    delay(10);
     Serial.print(".");
   }
 
