@@ -25,6 +25,11 @@ JoyDir lastJoyDir = CENTER;
 bool lastButtonAPressed = false;
 bool lastButtonBPressed = false;
 
+static inline void syncHomeButtonState() {
+  lastButtonAPressed = buttonPressed(BTN_A);
+  lastButtonBPressed = buttonPressed(BTN_B);
+}
+
 // Rendering state - only redraw when something changes
 int lastRenderedGameIndex = -1;
 bool lastRenderedDarkMode = false;
@@ -42,7 +47,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("System starting...");
-  
+
   // Initialize input handler (controller pins)
   initController();
 
@@ -54,6 +59,7 @@ void setup() {
   // Start at home screen
   currentState = STATE_HOME;
   selectedGameIndex = 0;
+  syncHomeButtonState();
   renderHome();
 }
 
@@ -155,12 +161,14 @@ void loop() {
       startTronGame();  // blocks until user presses B
       currentState = STATE_HOME;
       selectedGameIndex = 0;
+      syncHomeButtonState();
       break;
 
     case STATE_SNAKE:
       startSnakeGame();  // blocks until game over (includes 2s game-over delay)
       currentState = STATE_HOME;
       selectedGameIndex = 0;
+      syncHomeButtonState();
       break;
 
     default:

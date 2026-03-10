@@ -39,6 +39,9 @@ enum AppState {
   STATE_SNAKE = 2      // Snake game
 };
 
+// Shared UI state that persists across home and games.
+extern bool darkModeEnabled;
+
 // =====================
 // GAME DEFINITIONS
 // =====================
