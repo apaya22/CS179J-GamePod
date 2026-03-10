@@ -97,9 +97,9 @@ void renderGameSelector(int index, const char* name, bool isSelected) {
   // draw arrows
   tft.setTextSize(4);
   tft.setTextColor(accent);
-  tft.setCursor(8, SCREEN_H/2 - 12);
+  tft.setCursor(8, SCREEN_H/2 - 26);
   tft.print("<");
-  tft.setCursor(SCREEN_W - 32, SCREEN_H/2 - 12);
+  tft.setCursor(SCREEN_W - 32, SCREEN_H/2 - 26);
   tft.print(">");
 
   // Draw a selection box around the game name if selected
@@ -109,7 +109,7 @@ void renderGameSelector(int index, const char* name, bool isSelected) {
     int boxY = SCREEN_H/2 - 35;
     int boxW = SCREEN_W - 60;
     int boxH = 50;
-    
+
     // Draw selection highlight
     tft.drawRoundRect(boxX, boxY, boxW, boxH, 10, accent);
     tft.drawRoundRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2, 10, accent);

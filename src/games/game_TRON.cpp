@@ -93,6 +93,15 @@ static void resetDisplayState() {
   Serial.println("[Tron] Display state reset");
 }
 
+static const char* lastSentDirStr = nullptr;
+
+static bool isOppositeDir(const char* a, const char* b) {
+  return (strcmp(a, "UP")    == 0 && strcmp(b, "DOWN")  == 0) ||
+         (strcmp(a, "DOWN")  == 0 && strcmp(b, "UP")    == 0) ||
+         (strcmp(a, "LEFT")  == 0 && strcmp(b, "RIGHT") == 0) ||
+         (strcmp(a, "RIGHT") == 0 && strcmp(b, "LEFT")  == 0);
+}
+
 static void sendDir(const char* dir) {
   if (!tcp_is_connected()) return;
   tcp_send_direction(PLAYER_ID, dir);
@@ -297,6 +306,7 @@ void runTronGame() {
 
   JoyDir   lastJoyDir    = CENTER;
   uint32_t lastJoySendMs = 0;
+  lastSentDirStr = nullptr;
 
   bool lastB = buttonPressed(BTN_B);
 
@@ -331,15 +341,20 @@ void runTronGame() {
     JoyDir dir = joystickDirection();
 
     if (dir != CENTER && dir != lastJoyDir && (now - lastJoySendMs >= JOY_SEND_INTERVAL_MS)) {
+      const char* newDirStr = nullptr;
       switch (dir) {
-        case UP:    sendDir("UP");    break;
-        case DOWN:  sendDir("DOWN");  break;
-        case LEFT:  sendDir("RIGHT"); break;  // axes inverted vs server (need to fix hardcode for now)
-        case RIGHT: sendDir("LEFT");  break;
+        case UP:    newDirStr = "UP";    break;
+        case DOWN:  newDirStr = "DOWN";  break;
+        case LEFT:  newDirStr = "RIGHT"; break;  // axes inverted vs server 
+        case RIGHT: newDirStr = "LEFT";  break;
         default: break;
       }
-      lastJoyDir    = dir;
-      lastJoySendMs = now;
+      if (newDirStr && !(lastSentDirStr && isOppositeDir(lastSentDirStr, newDirStr))) {
+        sendDir(newDirStr);
+        lastSentDirStr = newDirStr;
+        lastJoyDir     = dir;
+        lastJoySendMs  = now;
+      }
     }
     if (dir == CENTER) lastJoyDir = CENTER;
 
