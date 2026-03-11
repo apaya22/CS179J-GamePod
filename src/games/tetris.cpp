@@ -340,7 +340,7 @@ void runTetrisGame() {
         }
       }
       // Joystick DOWN — soft drop
-      else if (joy == DOWN) {
+      else if (joy == UP) {
         if (pieceFits(tetrisGame.currentPiece, tetrisGame.rotation,
                       tetrisGame.pieceCol, tetrisGame.pieceRow + 1)) {
           erasePiece();
