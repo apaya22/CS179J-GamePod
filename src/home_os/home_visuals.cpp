@@ -9,6 +9,7 @@
 #include "../games/snake_game.h"
 #include "../games/game_tron.h"
 #include "../games/tetris.h"
+#include "../games/dungeon_rpg.h"
 
 // =====================
 // GLOBAL VARIABLES
@@ -25,8 +26,8 @@ unsigned long lastFrameTime = 0;
 unsigned long bootStartTime = 0;
 unsigned long bootFadeStartTime = 0;
 
-static const int   BOOT_FADE_STEPS    = 8;    // ~264ms — fast fade to black
-static const unsigned long BOOT_HOLD_MS = 2000; // how long logo stays solid
+static const int   BOOT_FADE_STEPS    = 8;
+static const unsigned long BOOT_HOLD_MS = 2000;
 
 // Input state tracking - detect state changes, not continuous state
 JoyDir lastJoyDir = CENTER;
@@ -83,12 +84,10 @@ void handleHomeMenuInput() {
   // Only process joystick input when direction changes
   if (joyDir != lastJoyDir) {
     if (joyDir == LEFT) {
-      // Scroll left through games
       selectedGameIndex = (selectedGameIndex - 1 + NUM_GAMES) % NUM_GAMES;
       Serial.print("Selected game: ");
       Serial.println(GAMES[selectedGameIndex].name);
     } else if (joyDir == RIGHT) {
-      // Scroll right through games
       selectedGameIndex = (selectedGameIndex + 1) % NUM_GAMES;
       Serial.print("Selected game: ");
       Serial.println(GAMES[selectedGameIndex].name);
@@ -96,7 +95,7 @@ void handleHomeMenuInput() {
     lastJoyDir = joyDir;
   }
 
-  // DEBUG: print raw pin reads every ~500ms
+  // DEBUG
   static uint32_t lastDebugPrint = 0;
   uint32_t nowDbg = millis();
   if (nowDbg - lastDebugPrint >= 500) {
@@ -107,7 +106,6 @@ void handleHomeMenuInput() {
     Serial.println(digitalRead(BTN_B));
   }
 
-  // Check for button A press - only on state change (press event)
   bool buttonAPressed = buttonPressed(BTN_A);
   if (buttonAPressed && !lastButtonAPressed) {
     Serial.print("Starting game: ");
@@ -116,7 +114,6 @@ void handleHomeMenuInput() {
   }
   lastButtonAPressed = buttonAPressed;
 
-  // Check for button B press - only on state change (press event)
   bool buttonBPressed = buttonPressed(BTN_B);
   if (buttonBPressed && !lastButtonBPressed) {
     darkModeEnabled = !darkModeEnabled;
@@ -145,6 +142,11 @@ void startTetrisGame() {
   runTetrisGame();
 }
 
+void startDungeonRPG() {
+  Serial.println("Launching DUNGEON RPG...");
+  runDungeonRPG();
+}
+
 // =====================
 // MAIN LOOP
 // =====================
@@ -155,7 +157,6 @@ void loop() {
   }
   lastFrameTime = now;
 
-  // State machine
   switch (currentState) {
     case STATE_BOOT:
       if (millis() - bootStartTime >= BOOT_HOLD_MS) {
@@ -166,10 +167,10 @@ void loop() {
 
     case STATE_BOOT_FADE: {
       unsigned long elapsed = millis() - bootFadeStartTime;
-      int step = (int)(elapsed / 33);  // one step per frame (~33ms)
+      int step = (int)(elapsed / 33);
       if (step >= BOOT_FADE_STEPS) {
         currentState = STATE_HOME;
-        lastRenderedState = static_cast<AppState>(-1); // force home redraw
+        lastRenderedState = static_cast<AppState>(-1);
       } else {
         renderBootFadeStep(step, BOOT_FADE_STEPS);
       }
@@ -177,10 +178,7 @@ void loop() {
     }
 
     case STATE_HOME:
-      // Handle input and render home menu
       handleHomeMenuInput();
-
-      // Only redraw if something changed (game selection or dark mode)
       if (selectedGameIndex != lastRenderedGameIndex ||
           darkModeEnabled != lastRenderedDarkMode ||
           currentState != lastRenderedState) {
@@ -192,21 +190,28 @@ void loop() {
       break;
 
     case STATE_TRON:
-      startTronGame();  // blocks until user presses B
+      startTronGame();
       currentState = STATE_HOME;
       selectedGameIndex = 0;
       syncHomeButtonState();
       break;
 
     case STATE_SNAKE:
-      startSnakeGame();  // blocks until game over (includes 2s game-over delay)
+      startSnakeGame();
       currentState = STATE_HOME;
       selectedGameIndex = 0;
       syncHomeButtonState();
       break;
 
     case STATE_TETRIS:
-      startTetrisGame();  // blocks until game over (includes 3s game-over delay)
+      startTetrisGame();
+      currentState = STATE_HOME;
+      selectedGameIndex = 0;
+      syncHomeButtonState();
+      break;
+
+    case STATE_DUNGEON:
+      startDungeonRPG();
       currentState = STATE_HOME;
       selectedGameIndex = 0;
       syncHomeButtonState();

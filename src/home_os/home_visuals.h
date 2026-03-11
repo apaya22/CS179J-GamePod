@@ -18,5 +18,6 @@ void handleHomeMenuInput();
 void startTronGame();
 void startSnakeGame();
 void startTetrisGame();
+void startDungeonRPG();
 
 #endif // HOME_VISUALS_H

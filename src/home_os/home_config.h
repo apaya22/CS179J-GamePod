@@ -39,7 +39,9 @@ enum AppState {
   STATE_HOME = 1,      // Home menu screen
   STATE_TRON = 2,      // TRON game
   STATE_SNAKE = 3,     // Snake game
-  STATE_TETRIS = 5     // Tetris game
+  STATE_TETRIS = 5,    // Tetris game
+  STATE_PACMAN = 6,    // Pac-Man game
+  STATE_DUNGEON = 7    // Dungeon RPG
 };
 
 // Shared UI state that persists across home and games.
@@ -56,9 +58,10 @@ struct Game {
 static const Game GAMES[] = {
   {"TRON", STATE_TRON},
   {"SNAKE", STATE_SNAKE},
-  {"TETRIS", STATE_TETRIS}
+  {"TETRIS", STATE_TETRIS},
+  {"DUNGEON", STATE_DUNGEON}
 };
-static const int NUM_GAMES = 3;
+static const int NUM_GAMES = 5;
 
 // =====================
 // UI THEME - COLORS
