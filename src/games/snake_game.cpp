@@ -113,8 +113,16 @@ void runSnakeGame() {
 
   uint32_t lastMove = millis();
   bool running = true;
+  bool lastB = buttonPressed(BTN_B);
 
   while (running) {
+    bool curB = buttonPressed(BTN_B);
+    if (curB && !lastB) {
+      tft.fillScreen(ILI9341_BLACK);
+      return;
+    }
+    lastB = curB;
+
     // Input - prevent 180-degree reversals
     JoyDir joy = joystickDirection();
     if (joy == UP    && snakeGame.dirY != -1)  { snakeGame.nextDirX =  0; snakeGame.nextDirY = 1; }
