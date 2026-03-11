@@ -7,6 +7,7 @@
 #include "../include/controller/controller.h"
 #include "../games/snake_game.h"
 #include "../games/game_tron.h"
+#include "../games/tetris.h"
 
 // =====================
 // GLOBAL VARIABLES
@@ -124,6 +125,11 @@ void startSnakeGame() {
   runSnakeGame();
 }
 
+void startTetrisGame() {
+  Serial.println("Launching TETRIS...");
+  runTetrisGame();
+}
+
 // =====================
 // MAIN LOOP
 // =====================
@@ -159,6 +165,12 @@ void loop() {
 
     case STATE_SNAKE:
       startSnakeGame();  // blocks until game over (includes 2s game-over delay)
+      currentState = STATE_HOME;
+      selectedGameIndex = 0;
+      break;
+
+    case STATE_TETRIS:
+      startTetrisGame();  // blocks until game over (includes 3s game-over delay)
       currentState = STATE_HOME;
       selectedGameIndex = 0;
       break;

@@ -36,7 +36,8 @@ static const int SCREEN_H = 240;
 enum AppState {
   STATE_HOME = 0,      // Home menu screen
   STATE_TRON = 1,      // TRON game
-  STATE_SNAKE = 2      // Snake game
+  STATE_SNAKE = 2,     // Snake game
+  STATE_TETRIS = 3     // Tetris game
 };
 
 // =====================
@@ -49,9 +50,10 @@ struct Game {
 
 static const Game GAMES[] = {
   {"TRON", STATE_TRON},
-  {"SNAKE", STATE_SNAKE}
+  {"SNAKE", STATE_SNAKE},
+  {"TETRIS", STATE_TETRIS}
 };
-static const int NUM_GAMES = 2;
+static const int NUM_GAMES = 3;
 
 // =====================
 // UI THEME - COLORS
