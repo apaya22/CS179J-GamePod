@@ -290,7 +290,7 @@ void initTetrisGame() {
 //   Joystick LEFT/RIGHT  = move piece
 //   Joystick DOWN         = soft drop
 //   Button A              = rotate clockwise
-//   Button B              = rotate counter-clockwise
+//   Button B              =  exit
 //   Button C              = hard drop (instant)
 //   Button D              = pause
 
@@ -314,6 +314,15 @@ void runTetrisGame() {
   bool running = true;
 
   while (running) {
+
+    // --- Button B — go home (same as snake) ---
+    bool curB = buttonPressed(BTN_B);
+    if (curB && !lastBtnB) {
+    tft.fillScreen(ILI9341_BLACK);
+    return;
+    }
+    lastBtnB = curB;
+
     uint32_t now = millis();
 
     // --- INPUT ---
@@ -362,16 +371,17 @@ void runTetrisGame() {
       }
       lastBtnA = btnA;
 
-      // Button B — rotate counter-clockwise (edge-triggered)
-      bool btnB = buttonPressed(BTN_B);
-      if (btnB && !lastBtnB) {
-        int newRot = (tetrisGame.rotation + 3) % 4;  // +3 mod 4 == -1 mod 4
-        erasePiece();
-        if (tryRotate(newRot)) {
-          moved = true;
-        }
-      }
-      lastBtnB = btnB;
+    //   // Button B — rotate counter-clockwise (edge-triggered)
+    //   bool btnB = buttonPressed(BTN_B);
+    //   if (btnB && !lastBtnB) {
+    //     int newRot = (tetrisGame.rotation + 3) % 4;  // +3 mod 4 == -1 mod 4
+    //     erasePiece();
+    //     if (tryRotate(newRot)) {
+    //       moved = true;
+    //     }
+    //   }
+    //   lastBtnB = btnB;
+
 
       // Button C — hard drop (edge-triggered)
       bool btnC = buttonPressed(BTN_C);
