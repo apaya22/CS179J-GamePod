@@ -3,6 +3,17 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 
+// Interpolate between two RGB565 colors: step=0 → from, step=total → to
+static uint16_t fadeColor(uint16_t from, uint16_t to, int step, int totalSteps) {
+  uint8_t r0 = (from >> 11) & 0x1F,  r1 = (to >> 11) & 0x1F;
+  uint8_t g0 = (from >> 5)  & 0x3F,  g1 = (to >> 5)  & 0x3F;
+  uint8_t b0 = (from)       & 0x1F,  b1 = (to)       & 0x1F;
+  uint8_t r = r0 + (int)(r1 - r0) * step / totalSteps;
+  uint8_t g = g0 + (int)(g1 - g0) * step / totalSteps;
+  uint8_t b = b0 + (int)(b1 - b0) * step / totalSteps;
+  return ((uint16_t)r << 11) | ((uint16_t)g << 5) | b;
+}
+
 static inline void drawCenteredText(const char* txt, int y, uint8_t size, uint16_t color) {
   tft.setTextSize(size);
   tft.setTextColor(color);
@@ -22,6 +33,53 @@ static inline void drawCenteredText(const char* txt, int y, uint8_t size, uint16
 //   tft.setCursor(centerX - (w / 2), centerY - (h / 2) + 2);
 //   tft.print(text);
 // }
+
+void renderBootScreen() {
+  if (darkModeEnabled) {
+    // Dark mode boot: black background, white title, dim subtitle
+    tft.fillScreen(DARK_BG);
+
+    tft.setTextSize(5);
+    tft.setTextColor(GAMEPOD_WHITE);
+    int16_t x1, y1; uint16_t w, h;
+    tft.getTextBounds("GamePod", 0, 0, &x1, &y1, &w, &h);
+    int x = (SCREEN_W / 2) - (w / 2);
+    int y = (SCREEN_H / 2) - (h / 2) - 10;
+    tft.setCursor(x, y);
+    tft.print("GamePod");
+
+    tft.setTextSize(1);
+    tft.setTextColor(GAMEPOD_GREY);
+    tft.getTextBounds("V1", 0, 0, &x1, &y1, &w, &h);
+    tft.setCursor((SCREEN_W / 2) - (w / 2), y + 50);
+    tft.print("V1");
+  } else {
+    // Light mode boot: white background, blue title, grey subtitle
+    tft.fillScreen(GAMEPOD_WHITE);
+
+    tft.setTextSize(5);
+    tft.setTextColor(GAMEPOD_BLUE);
+    int16_t x1, y1; uint16_t w, h;
+    tft.getTextBounds("GamePod", 0, 0, &x1, &y1, &w, &h);
+    int x = (SCREEN_W / 2) - (w / 2);
+    int y = (SCREEN_H / 2) - (h / 2) - 10;
+    tft.setCursor(x, y);
+    tft.print("GamePod");
+
+    tft.setTextSize(1);
+    tft.setTextColor(GAMEPOD_GREY);
+    tft.getTextBounds("V1", 0, 0, &x1, &y1, &w, &h);
+    tft.setCursor((SCREEN_W / 2) - (w / 2), y + 50);
+    tft.print("V1");
+  }
+}
+
+// Fades the boot screen to black then transitions to home.
+void renderBootFadeStep(int step, int totalSteps) {
+  uint16_t bootBg = darkModeEnabled ? DARK_BG : GAMEPOD_WHITE;
+  uint16_t bgColor = fadeColor(bootBg, 0x0000, step, totalSteps);
+  tft.fillScreen(bgColor);
+}
 
 void renderStatusBar() {
   uint16_t bgColor = darkModeEnabled ? DARK_BG : GAMEPOD_WHITE;
