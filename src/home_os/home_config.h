@@ -38,7 +38,8 @@ enum AppState {
   STATE_BOOT_FADE = 4, // Boot screen fade-out transition
   STATE_HOME = 1,      // Home menu screen
   STATE_TRON = 2,      // TRON game
-  STATE_SNAKE = 3      // Snake game
+  STATE_SNAKE = 3,     // Snake game
+  STATE_TETRIS = 5     // Tetris game
 };
 
 // Shared UI state that persists across home and games.
@@ -54,9 +55,10 @@ struct Game {
 
 static const Game GAMES[] = {
   {"TRON", STATE_TRON},
-  {"SNAKE", STATE_SNAKE}
+  {"SNAKE", STATE_SNAKE},
+  {"TETRIS", STATE_TETRIS}
 };
-static const int NUM_GAMES = 2;
+static const int NUM_GAMES = 3;
 
 // =====================
 // UI THEME - COLORS
