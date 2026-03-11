@@ -34,9 +34,11 @@ static const int SCREEN_H = 240;
 // UI STATES
 // =====================
 enum AppState {
-  STATE_HOME = 0,      // Home menu screen
-  STATE_TRON = 1,      // TRON game
-  STATE_SNAKE = 2      // Snake game
+  STATE_BOOT = 0,      // Boot screen
+  STATE_BOOT_FADE = 4, // Boot screen fade-out transition
+  STATE_HOME = 1,      // Home menu screen
+  STATE_TRON = 2,      // TRON game
+  STATE_SNAKE = 3      // Snake game
 };
 
 // Shared UI state that persists across home and games.

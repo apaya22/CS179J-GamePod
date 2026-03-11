@@ -18,9 +18,14 @@ Preferences prefs;
 bool darkModeEnabled = false;
 
 // State machine variables
-AppState currentState = STATE_HOME;
+AppState currentState = STATE_BOOT;
 int selectedGameIndex = 0;
 unsigned long lastFrameTime = 0;
+unsigned long bootStartTime = 0;
+unsigned long bootFadeStartTime = 0;
+
+static const int   BOOT_FADE_STEPS    = 8;    // ~264ms — fast fade to black
+static const unsigned long BOOT_HOLD_MS = 2000; // how long logo stays solid
 
 // Input state tracking - detect state changes, not continuous state
 JoyDir lastJoyDir = CENTER;
@@ -36,10 +41,6 @@ static inline void syncHomeButtonState() {
 int lastRenderedGameIndex = -1;
 bool lastRenderedDarkMode = false;
 AppState lastRenderedState = static_cast<AppState>(-1);
-
-// =====================
-// INPUT SYSTEM
-// =====================
 
 
 // =====================
@@ -62,11 +63,11 @@ void setup() {
   darkModeEnabled = prefs.getBool("dark", false);
   prefs.end();
 
-  // Start at home screen
-  currentState = STATE_HOME;
+  // Start at boot screen
+  currentState = STATE_BOOT;
   selectedGameIndex = 0;
-  syncHomeButtonState();
-  renderHome();
+  bootStartTime = millis();
+  renderBootScreen();
 }
 
 
@@ -150,6 +151,25 @@ void loop() {
 
   // State machine
   switch (currentState) {
+    case STATE_BOOT:
+      if (millis() - bootStartTime >= BOOT_HOLD_MS) {
+        bootFadeStartTime = millis();
+        currentState = STATE_BOOT_FADE;
+      }
+      break;
+
+    case STATE_BOOT_FADE: {
+      unsigned long elapsed = millis() - bootFadeStartTime;
+      int step = (int)(elapsed / 33);  // one step per frame (~33ms)
+      if (step >= BOOT_FADE_STEPS) {
+        currentState = STATE_HOME;
+        lastRenderedState = static_cast<AppState>(-1); // force home redraw
+      } else {
+        renderBootFadeStep(step, BOOT_FADE_STEPS);
+      }
+      break;
+    }
+
     case STATE_HOME:
       // Handle input and render home menu
       handleHomeMenuInput();

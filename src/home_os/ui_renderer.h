@@ -8,6 +8,8 @@
 extern Adafruit_ILI9341 tft;
 extern bool darkModeEnabled;
 
+void renderBootScreen();
+void renderBootFadeStep(int step, int totalSteps);
 void renderHome();
 void renderStatusBar();
 void renderGameSelector(int index, const char* name, bool isSelected);
