@@ -1,6 +1,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <SPI.h>
+#include <Preferences.h>
 
 #include "home_config.h"
 #include "ui_renderer.h"
@@ -13,6 +14,7 @@
 // =====================
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST); // PINS DECLARATION
 
+Preferences prefs;
 bool darkModeEnabled = false;
 
 // State machine variables
@@ -55,6 +57,10 @@ void setup() {
 
   tft.begin();
   tft.setRotation(TFT_ROT);
+
+  prefs.begin("ui", true);
+  darkModeEnabled = prefs.getBool("dark", false);
+  prefs.end();
 
   // Start at home screen
   currentState = STATE_HOME;
@@ -112,7 +118,9 @@ void handleHomeMenuInput() {
   bool buttonBPressed = buttonPressed(BTN_B);
   if (buttonBPressed && !lastButtonBPressed) {
     darkModeEnabled = !darkModeEnabled;
-    Serial.println(darkModeEnabled ? "Dark mode ON" : "Dark mode OFF");
+    prefs.begin("ui", false);
+    prefs.putBool("dark", darkModeEnabled);
+    prefs.end();
   }
   lastButtonBPressed = buttonBPressed;
 }

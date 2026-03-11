@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 
 #include "tron_visuals.h"
+#include "lobby_screen.h"
 #include "controller/controller.h"
 #include "network/tcp_client.h"
 #include "secrets.h"
@@ -16,7 +17,7 @@
 //    Board 3 → PLAYER_ID 3  (GREEN bike)
 // ============================================
 
-#define PLAYER_ID            3   // change this per programmed board
+#define PLAYER_ID            1        // change this per programmed board
 #define RECONNECT_DELAY_MS   3000
 #define MAX_BIKES            3
 #define JOY_SEND_INTERVAL_MS 100
@@ -76,7 +77,6 @@ static uint8_t dirToInt(const char* dir) {
   return 2;
 }
 
-// Reset display-side state (FIXME: issues with reconnection)
 static void resetDisplayState() {
   resetScreenBeforeStart();
   memset(trailMap, 0, sizeof(trailMap));
@@ -304,23 +304,16 @@ void runTronGame() {
     return;
   }
 
-  // ── PLAYER ID SCREEN ──────────────────────────────────────────────────────
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setTextColor(BIKE_COLORS[PLAYER_ID - 1]);
-  tft.setTextSize(3);
-  tft.getTextBounds("PLAYER X", 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((Width_Sreen - (int)w) / 2, 90);
-  tft.printf("PLAYER %d", PLAYER_ID);
+  // ── LOBBY SCREEN (waiting / countdown) ────────────────────────────────────
+  String pendingPacket;
+  if (!runLobbyScreen(PLAYER_ID, pendingPacket)) {
+    tcp_disconnect();
+    wifi_disconnect();
+    resetScreenBeforeStart();
+    return;
+  }
 
-  tft.setTextColor(0x8410);
-  tft.setTextSize(1);
-  tft.getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
-  tft.setCursor((Width_Sreen - (int)w) / 2, 160);
-  tft.print(hint);
-
-  delay(1500);
-
-  // Clear for game arena
+  // Clear lobby UI before game arena is drawn
   resetScreenBeforeStart();
 
   JoyDir   lastJoyDir    = CENTER;
@@ -331,17 +324,12 @@ void runTronGame() {
 
   String tcpBuffer;
 
+  // Process the first game packet captured at end of lobby
+  if (pendingPacket.length() > 0) {
+    processPacket(pendingPacket);
+  }
+
   while (true) {
-    // ── Return to home  ──────────────────────────────────────────
-    bool curB = buttonPressed(BTN_B);
-    if (curB && !lastB) {
-      Serial.println("[Tron] Returning to home menu...");
-      tcp_disconnect();
-      wifi_disconnect();
-      resetScreenBeforeStart();
-      return;
-    }
-    lastB = curB;
 
     // ── Reconnect ──────────────────────────────────────
     if (!wifi_is_connected() || !tcp_is_connected()) {
@@ -364,7 +352,10 @@ void runTronGame() {
     // ── Joystick  ───────────────────────────────
     JoyDir dir = joystickDirection();
 
-    if (dir != CENTER && dir != lastJoyDir && (now - lastJoySendMs >= JOY_SEND_INTERVAL_MS)) {
+    // Don't send inputs while spectating (this was causing bugs earlier; instant bike death upon sending input)
+    bool ownBikeAlive = bikes[PLAYER_ID - 1].valid && bikes[PLAYER_ID - 1].alive;
+
+    if (ownBikeAlive && dir != CENTER && dir != lastJoyDir && (now - lastJoySendMs >= JOY_SEND_INTERVAL_MS)) {
       const char* newDirStr = nullptr;
       switch (dir) {
         case UP:    newDirStr = "UP";    break;
@@ -397,5 +388,29 @@ void runTronGame() {
 
     // ── Advance death animations ─────────────────────────────────────
     tickDeathAnimations();
+
+    // ── Game over & then return to lobby ─────────
+    if (gameOver) {
+      // Hold the game-over screen while draining TCP.
+      // Server resets the round ~5s after game_over, then sends lobby packets.
+      uint32_t holdStart = millis();
+      while (millis() - holdStart < 4000) {
+        while (tcp_available() > 0) tcp_read();
+        delay(20);
+      }
+
+      // Stay connected — server keeps us registered for the next round.
+      tcpBuffer = "";
+      String nextPending;
+      if (!runLobbyScreen(PLAYER_ID, nextPending)) {
+        tcp_disconnect();
+        wifi_disconnect();
+        resetScreenBeforeStart();
+        return;
+      }
+      prevGameOver = false;
+      resetDisplayState();
+      if (nextPending.length() > 0) processPacket(nextPending);
+    }
   }
 }
